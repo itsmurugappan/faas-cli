@@ -43,7 +43,7 @@ func GetSystemInfo(gateway string, tlsInsecure bool) (map[string]interface{}, er
 		}
 		jsonErr := json.Unmarshal(bytesOut, &info)
 		if jsonErr != nil {
-			if strings.Contains(string(bytesOut),"Log in to openfaas") {
+			if strings.Contains(string(bytesOut),"Log in") {
 				fmt.Println("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 				return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 			} else {

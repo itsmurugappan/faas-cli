@@ -44,7 +44,7 @@ func GetSecretList(gateway string, tlsInsecure bool) ([]schema.Secret, error) {
 
 		jsonErr := json.Unmarshal(bytesOut, &results)
 		if jsonErr != nil {
-			if strings.Contains(string(bytesOut),"Log in to openfaas") {
+			if strings.Contains(string(bytesOut),"Log in") {
 				return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 			} else {
 					return nil, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, jsonErr.Error())

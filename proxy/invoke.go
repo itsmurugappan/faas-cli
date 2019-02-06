@@ -85,7 +85,7 @@ func InvokeFunction(gateway string, name string, bytesIn *[]byte, contentType st
 		if readErr != nil {
 					return nil, fmt.Errorf("cannot read result from OpenFaaS on URL: %s %s", gateway, readErr)
 		}
-		if strings.Contains(string(resBytes),"Log in to openfaas") {
+		if strings.Contains(string(resBytes),"Log in") {
 			return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 		}
 	case http.StatusUnauthorized, http.StatusMethodNotAllowed:
