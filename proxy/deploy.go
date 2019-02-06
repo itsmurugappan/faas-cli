@@ -164,7 +164,7 @@ func Deploy(spec *DeployFunctionSpec, update bool, warnInsecureGateway bool) (in
 
 		deployedURL := fmt.Sprintf("URL: %s/function/%s", gateway, spec.FunctionName)
 		deployOutput += fmt.Sprintln(deployedURL)
-	case http.StatusUnauthorized:
+	case http.StatusUnauthorized, http.StatusMethodNotAllowed:
 		deployOutput += fmt.Sprintln("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 		/*
 			case http.StatusNotFound:

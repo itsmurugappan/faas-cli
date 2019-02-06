@@ -45,7 +45,7 @@ func DeleteFunction(gateway string, functionName string, tlsInsecure bool) error
 		fmt.Println("Removing old function.")
 	case http.StatusNotFound:
 		fmt.Println("No existing function to remove")
-	case http.StatusUnauthorized:
+	case http.StatusUnauthorized, http.StatusMethodNotAllowed:
 		fmt.Println("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 	default:
 		var bodyReadErr error

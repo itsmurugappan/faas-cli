@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
-
+	"strconv"
+	"encoding/json"
 	"github.com/openfaas/faas-cli/proxy"
 
 	"github.com/openfaas/faas-cli/config"
@@ -21,7 +23,13 @@ var (
 	username      string
 	password      string
 	passwordStdin bool
+	authEndPoint  string
+	oidcClient        string
 )
+
+type accessToken struct {
+	Token string `json:"access_token"`
+}
 
 func init() {
 	loginCmd.Flags().StringVarP(&gateway, "gateway", "g", defaultGateway, "Gateway URL starting with http(s)://")
@@ -29,15 +37,17 @@ func init() {
 	loginCmd.Flags().StringVarP(&password, "password", "p", "", "Gateway password")
 	loginCmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "Reads the gateway password from stdin")
 	loginCmd.Flags().BoolVar(&tlsInsecure, "tls-no-verify", false, "Disable TLS validation")
-
+	loginCmd.Flags().StringVarP(&authEndPoint, "auth-url", "a", "", "oidc provider like key cloak")
+	loginCmd.Flags().StringVarP(&oidcClient, "client", "c", "", "oidc client")
 	faasCmd.AddCommand(loginCmd)
 }
 
 var loginCmd = &cobra.Command{
-	Use:   `login [--username USERNAME] [--password PASSWORD] [--gateway GATEWAY_URL] [--tls-no-verify]`,
+	Use:   `login [--username USERNAME] [--password PASSWORD] [--gateway GATEWAY_URL] [--auth-url AUTH_URL] [--client OIDC_CLIENT][--tls-no-verify]`,
 	Short: "Log in to OpenFaaS gateway",
 	Long:  "Log in to OpenFaaS gateway.\nIf no gateway is specified, the default local one will be used.",
-	Example: `  faas-cli login -u user -p password --gateway http://127.0.0.1:8080
+	Example: `  faas-cli login -u user -p password --gateway http://127.0.0.1:8080 --auth-url=https://oidcprovider/auth/realms/realmname/protocol/openid-connect/token --client=oidcclientname
+  faas-cli login -u user -p password --gateway http://127.0.0.1:8080
   cat ~/faas_pass.txt | faas-cli login -u user --password-stdin --gateway https://openfaas.mydomain.com`,
 	RunE: runLogin,
 }
@@ -81,19 +91,31 @@ func runLogin(cmd *cobra.Command, args []string) error {
 
 	gateway = getGatewayURL(gateway, defaultGateway, "", os.Getenv(openFaaSURLEnvironment))
 
-	if err := validateLogin(gateway, username, password); err != nil {
-		return err
+	if len(authEndPoint) > 0 {
+		token,err := getAccessToken(username, password, authEndPoint, oidcClient)
+
+		if err != nil {
+			return err
+		}
+
+		if err := config.UpdateAuthConfig(gateway, "", "", token); err != nil {
+			return err
+		}
+
+	} else {
+		if err := validateLogin(gateway, username, password); err != nil {
+			return err
+		}
+		if err := config.UpdateAuthConfig(gateway, username, password,""); err != nil {
+			return err
+		}
 	}
 
-	if err := config.UpdateAuthConfig(gateway, username, password); err != nil {
-		return err
-	}
-
-	user, _, err := config.LookupAuthConfig(gateway)
+	_, _, _, err := config.LookupAuthConfig(gateway)
 	if err != nil {
 		return err
 	}
-	fmt.Println("credentials saved for", user, gateway)
+	fmt.Println("credentials saved for", gateway)
 
 	return nil
 }
@@ -134,4 +156,51 @@ func validateLogin(gatewayURL string, user string, pass string) error {
 	}
 
 	return nil
+}
+
+func getAccessToken(user string, pass string, authEndPoint string, oidcClient string) (string,error) {
+	timeout := time.Duration(5 * time.Second)
+	client := proxy.MakeHTTPClient(&timeout, tlsInsecure)
+
+	apiUrl := authEndPoint
+	data := url.Values{}
+	data.Set("username", user)
+	data.Set("password", pass)
+	data.Set("grant_type", "password")
+	data.Set("client_id", oidcClient)
+
+	u, err := url.ParseRequestURI(apiUrl)
+	if err != nil {
+		return "", err
+	}
+
+	urlStr := u.String()
+
+	r, _ := http.NewRequest("POST", urlStr, strings.NewReader(data.Encode())) // URL-encoded payload
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	res, _ := client.Do(r)
+
+	if res.Body != nil {
+		defer res.Body.Close()
+	}
+
+	body, readErr := ioutil.ReadAll(res.Body)
+
+	if readErr != nil {
+		return "", readErr
+	}
+
+	token := accessToken{}
+	jsonErr := json.Unmarshal(body, &token)
+	if jsonErr != nil {
+		return "", jsonErr
+	}
+
+	if res.TLS == nil {
+		fmt.Println("WARNING! Communication is not secure, please consider using HTTPS. Letsencrypt.org offers free SSL/TLS certificates.")
+	}
+
+	return token.Token,nil
 }

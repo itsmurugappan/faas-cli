@@ -44,7 +44,11 @@ func GetSecretList(gateway string, tlsInsecure bool) ([]schema.Secret, error) {
 
 		jsonErr := json.Unmarshal(bytesOut, &results)
 		if jsonErr != nil {
-			return nil, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, jsonErr.Error())
+			if strings.Contains(string(bytesOut),"Log in to openfaas") {
+				return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
+			} else {
+					return nil, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, jsonErr.Error())
+			}
 		}
 
 	case http.StatusUnauthorized:
@@ -95,7 +99,7 @@ func UpdateSecret(gateway string, secret schema.Secret, tlsInsecure bool) (int, 
 	case http.StatusNotFound:
 		output += fmt.Sprintf("unable to find secret: %s", secret.Name)
 
-	case http.StatusUnauthorized:
+	case http.StatusUnauthorized, http.StatusMethodNotAllowed:
 		output += fmt.Sprintf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 
 	default:
@@ -137,7 +141,7 @@ func RemoveSecret(gateway string, secret schema.Secret, tlsInsecure bool) error 
 		break
 	case http.StatusNotFound:
 		return fmt.Errorf("unable to find secret: %s", secret.Name)
-	case http.StatusUnauthorized:
+	case http.StatusUnauthorized, http.StatusMethodNotAllowed:
 		return fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 
 	default:
@@ -182,7 +186,7 @@ func CreateSecret(gateway string, secret schema.Secret, tlsInsecure bool) (int, 
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted:
 		output += fmt.Sprintf("Created: %s\n", res.Status)
 
-	case http.StatusUnauthorized:
+	case http.StatusUnauthorized, http.StatusMethodNotAllowed:
 		output += fmt.Sprintln("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 
 	default:

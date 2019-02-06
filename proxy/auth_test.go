@@ -19,7 +19,7 @@ func Test_SetAuth_AuthorizationHeader(t *testing.T) {
 	config.DefaultFile = "authtest1.yml"
 	basicAuthURL := strings.TrimRight("http://openfaas.test/", "/")
 	openURL := "http://openfaas.test/"
-	config.UpdateAuthConfig(basicAuthURL, "Aladdin", "open sesame")
+	config.UpdateAuthConfig(basicAuthURL, "Aladdin", "open sesame", "")
 
 	req, _ := http.NewRequest("GET", openURL, nil)
 	SetAuth(req, basicAuthURL)
@@ -36,7 +36,7 @@ func Test_SetAuth_SkipAuthorization(t *testing.T) {
 	config.DefaultFile = "authtest2.yml"
 	basicAuthURL := strings.TrimRight("http://openfaas.test/", "/")
 	openURL := "http://openfaas.test2/"
-	config.UpdateAuthConfig(basicAuthURL, "Aladdin", "open sesame")
+	config.UpdateAuthConfig(basicAuthURL, "Aladdin", "open sesame", "")
 
 	req, _ := http.NewRequest("GET", openURL, nil)
 	SetAuth(req, "http://openfaas.test2")

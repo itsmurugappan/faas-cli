@@ -11,11 +11,14 @@ import (
 
 //SetAuth sets basic auth for the given gateway
 func SetAuth(req *http.Request, gateway string) {
-	username, password, err := config.LookupAuthConfig(gateway)
+	username, password, auth, err := config.LookupAuthConfig(gateway)
 	if err != nil {
 		// no auth info found
 		return
 	}
-
-	req.SetBasicAuth(username, password)
+  if auth=="oidc" {
+    req.Header.Add("Authorization", "Bearer " + username)
+  } else {
+    req.SetBasicAuth(username, password)
+  }
 }

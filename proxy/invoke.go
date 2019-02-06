@@ -59,7 +59,7 @@ func InvokeFunction(gateway string, name string, bytesIn *[]byte, contentType st
 	for name, value := range headerMap {
 		req.Header.Add(name, value)
 	}
-
+	SetAuth(req, gateway)
 	// Removed by AE - the system-level basic auth secrets should not be transmitted
 	// to functions. Functions should implement their own auth.
 	// SetAuth(req, gateway)
@@ -83,9 +83,12 @@ func InvokeFunction(gateway string, name string, bytesIn *[]byte, contentType st
 		var readErr error
 		resBytes, readErr = ioutil.ReadAll(res.Body)
 		if readErr != nil {
-			return nil, fmt.Errorf("cannot read result from OpenFaaS on URL: %s %s", gateway, readErr)
+					return nil, fmt.Errorf("cannot read result from OpenFaaS on URL: %s %s", gateway, readErr)
 		}
-	case http.StatusUnauthorized:
+		if strings.Contains(string(resBytes),"Log in to openfaas") {
+			return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
+		}
+	case http.StatusUnauthorized, http.StatusMethodNotAllowed:
 		return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
 	default:
 		bytesOut, err := ioutil.ReadAll(res.Body)

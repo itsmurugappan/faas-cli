@@ -149,19 +149,19 @@ func DecodeAuth(input string) (string, string, error) {
 }
 
 // UpdateAuthConfig creates or updates the username and password for a given gateway
-func UpdateAuthConfig(gateway string, username string, password string) error {
+func UpdateAuthConfig(gateway string, username string, password string, accessToken string) error {
 	_, err := url.ParseRequestURI(gateway)
 	if err != nil || len(gateway) < 1 {
 		return fmt.Errorf("invalid gateway URL")
 	}
 
-	if len(username) < 1 {
-		return fmt.Errorf("username can't be an empty string")
-	}
+	// if len(username) < 1 {
+	// 	return fmt.Errorf("username can't be an empty string")
+	// }
 
-	if len(password) < 1 {
-		return fmt.Errorf("password can't be an empty string")
-	}
+	// if len(password) < 1 {
+	// 	return fmt.Errorf("password can't be an empty string")
+	// }
 
 	configPath, err := EnsureFile()
 	if err != nil {
@@ -178,9 +178,15 @@ func UpdateAuthConfig(gateway string, username string, password string) error {
 	}
 
 	auth := AuthConfig{
-		Gateway: gateway,
-		Auth:    "basic",
-		Token:   EncodeAuth(username, password),
+		Gateway: gateway ,
+	}
+
+	if len(accessToken) > 0 {
+		auth.Auth = "oidc"
+		auth.Token = EncodeAuth(accessToken,"")
+	} else {
+		auth.Auth = "basic"
+		auth.Token = EncodeAuth(username, password)
 	}
 
 	index := -1
@@ -205,36 +211,36 @@ func UpdateAuthConfig(gateway string, username string, password string) error {
 }
 
 // LookupAuthConfig returns the username and password for a given gateway
-func LookupAuthConfig(gateway string) (string, string, error) {
+func LookupAuthConfig(gateway string) (string, string, string, error) {
 	if !fileExists() {
-		return "", "", fmt.Errorf("config file not found")
+		return "", "", "", fmt.Errorf("config file not found")
 	}
 
 	configPath, err := EnsureFile()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	cfg, err := New(configPath)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	if err := cfg.load(); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	for _, v := range cfg.AuthConfigs {
 		if gateway == v.Gateway {
 			user, pass, err := DecodeAuth(v.Token)
 			if err != nil {
-				return "", "", err
+				return "", "", "", err
 			}
-			return user, pass, nil
+			return user, pass, v.Auth, nil
 		}
 	}
 
-	return "", "", fmt.Errorf("no auth config found for %s", gateway)
+	return "", "", "", fmt.Errorf("no auth config found for %s", gateway)
 }
 
 // RemoveAuthConfig deletes the username and password for a given gateway

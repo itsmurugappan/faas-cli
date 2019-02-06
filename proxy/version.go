@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
+	"strings"
 )
 
 //GetSystemInfo get system information from /system/info endpoint
@@ -40,9 +41,14 @@ func GetSystemInfo(gateway string, tlsInsecure bool) (map[string]interface{}, er
 		if err != nil {
 			return nil, fmt.Errorf("cannot read result from OpenFaaS on URL: %s", gateway)
 		}
-		err = json.Unmarshal(bytesOut, &info)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, err.Error())
+		jsonErr := json.Unmarshal(bytesOut, &info)
+		if jsonErr != nil {
+			if strings.Contains(string(bytesOut),"Log in to openfaas") {
+				fmt.Println("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
+				return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
+			} else {
+				return nil, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, jsonErr.Error())
+			}
 		}
 
 	case http.StatusUnauthorized:

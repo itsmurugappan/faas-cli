@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 
 	"github.com/openfaas/faas/gateway/requests"
 )
@@ -51,7 +52,11 @@ func GetFunctionInfo(gateway string, functionName string, tlsInsecure bool) (req
 
 		jsonErr := json.Unmarshal(bytesOut, &result)
 		if jsonErr != nil {
-			return result, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, jsonErr.Error())
+			if strings.Contains(string(bytesOut),"Log in to openfaas") {
+				return result, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
+			} else {
+							return result, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, jsonErr.Error())
+			}
 		}
 	case http.StatusUnauthorized:
 		return result, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")

@@ -35,17 +35,19 @@ func ListFunctions(gateway string, tlsInsecure bool) ([]requests.Function, error
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
-
 	switch res.StatusCode {
 	case http.StatusOK:
-
 		bytesOut, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read result from OpenFaaS on URL: %s", gateway)
 		}
 		jsonErr := json.Unmarshal(bytesOut, &results)
 		if jsonErr != nil {
-			return nil, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, jsonErr.Error())
+			if strings.Contains(string(bytesOut),"Log in to openfaas") {
+				return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")
+			} else {
+				return nil, fmt.Errorf("cannot parse result from OpenFaaS on URL: %s\n%s", gateway, jsonErr.Error())
+			}
 		}
 	case http.StatusUnauthorized:
 		return nil, fmt.Errorf("unauthorized access, run \"faas-cli login\" to setup authentication for this server")

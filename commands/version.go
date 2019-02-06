@@ -83,7 +83,7 @@ func printServerVersions() {
 Provider
  name:          %s
  orchestration: %s
- version:       %s 
+ version:       %s
  sha:           %s
 `, name, orchestration, version, sha)
 }
